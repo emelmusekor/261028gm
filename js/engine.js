@@ -1,0 +1,14 @@
+// 게임 규칙. 화면과 분리해 계산 결과를 시험한다.
+export function rng(seed){let n=seed>>>0;return()=>{n=(Math.imul(1664525,n)+1013904223)>>>0;return n/4294967296}}
+export function mergeLine(line){const a=line.filter(Boolean),out=[];let gain=0;for(let i=0;i<a.length;i++){if(a[i]===a[i+1]){const v=a[i]*2;out.push(v);gain+=v;i++}else out.push(a[i])}while(out.length<line.length)out.push(0);return {line:out,gain}}
+export function slide(board,dir){const b=board.slice();let gain=0;for(let r=0;r<4;r++){let ids=[];for(let c=0;c<4;c++)ids.push(dir==='left'?r*4+c:dir==='right'?r*4+3-c:dir==='up'?c*4+r:(3-c)*4+r);const m=mergeLine(ids.map(i=>board[i]));ids.forEach((i,j)=>b[i]=m.line[j]);gain+=m.gain}return {board:b,gain,changed:b.some((v,i)=>v!==board[i])}}
+export function canMove(b){return b.includes(0)||['left','up'].some(d=>slide(b,d).changed)}
+export function spawn(b,random){const empty=b.map((v,i)=>v===0?i:-1).filter(i=>i>=0);if(!empty.length)return b.slice();const x=b.slice();x[empty[Math.floor(random()*empty.length)]]=random()<.9?2:4;return x}
+export function newMerge(random){return spawn(spawn(Array(16).fill(0),random),random)}
+export const SHOPS={school:{name:'학교 매점',base:28,elasticity:1.8,target:850,opening:90,forecast:[1,1.15,.8,1.25,.9,1.1,1.3,1],events:['평소와 같은 날','동아리 행사','비가 오는 날','체육 활동','짧은 운영','방과후 행사','축제 준비','마지막 영업']},festival:{name:'축제 음료 부스',base:36,elasticity:4,target:800,opening:90,forecast:[1.2,1.3,.7,1.4,.85,1.1,1.3,1],events:['개막 행사','오후 공연','우천 예보','체험 부스','주변 경쟁 부스','저녁 공연','마지막 공연','정리 영업']}};
+export function demand(price,day,kind){const k=SHOPS[kind];return Math.max(0,Math.round((k.base-k.elasticity*(price-5))*k.forecast[day]))}
+export function newShop(kind='school'){return {kind,day:0,cash:SHOPS[kind].opening,log:[],done:false}}
+export function shopTurn(state,{quantity,price,reason=''}){if(state.done)return {error:'영업 종료 · 새로 시작해보기'};if(!Number.isInteger(quantity)||quantity<0||quantity>40||!Number.isInteger(price)||price<3||price>9)return {error:'수량 0~40 · 가격 3~9의 정수로 선택'};const cost=quantity*2;if(cost>state.cash)return {error:'재고 구입 현금 부족 · 수량 줄이기'};const wanted=demand(price,state.day,state.kind),sold=Math.min(quantity,wanted),revenue=sold*price,profit=revenue-cost-4,cash=state.cash+profit;const entry={day:state.day+1,opening:state.cash,quantity,price,wanted,sold,left:quantity-sold,cost,fee:4,revenue,profit,cash,reason};return {...state,day:state.day+1,cash,log:[...state.log,entry],done:state.day+1>=8||cash<0}}
+export const HABITATS={meadow:{name:'풀밭',capacity:120,growth:.55},dry:{name:'가뭄이 든 풀밭',capacity:60,growth:.35}};
+export function ecoStep({prey,predator},{capacity=120,growth=.55,attack=.04,efficiency=.15,mortality=.12,dt=.25}={}){return {prey:Math.max(0,prey+(growth*prey*(1-prey/capacity)-attack*prey*predator)*dt),predator:Math.max(0,predator+(efficiency*attack*prey*predator-mortality*predator)*dt)}}
+export function format(n){return Number(n).toLocaleString('ko-KR',{maximumFractionDigits:1})}
