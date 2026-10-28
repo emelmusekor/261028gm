@@ -3,9 +3,24 @@ import {CONTENT as C} from './content.js';
 import {$,$$,esc,read,write,notify,copyText,download,wireNotes,modal} from './utils.js';
 import {mountGame} from './games.js';
 import {makeZip} from './zip.js';
-let cleanup=()=>{},activeGame='merge',createMode=read('create-mode','image'),activeFile='goal';
+let cleanup=()=>{},activeGame='merge',createMode=read('create-mode','image',value=>['image','info','slides'].includes(value)),activeFile='goal';
 const labels={aside:'01 / Aside 체험',ovt:'02 / OVT 이야기',cases:'03 / 교대생 수업 사례',create:'04 / 의도를 담아 만들기',project:'05 / 내 폴더의 프로젝트',arcade:'05 / 개념어 게임 작업실',play:'05 / 플레이와 수업 설계'};
-function route(){cleanup();cleanup=()=>{};const hash=location.hash.slice(1)||'aside',page=hash.startsWith('play/')?'play':(labels[hash]?hash:'aside');$$('[data-page]').forEach(n=>n.hidden=n.dataset.page!==page);$$('[data-nav]').forEach(n=>n.classList.toggle('active',n.dataset.nav===(['play','arcade'].includes(page)?'project':page)));$('#breadcrumb').textContent=labels[page];if(page==='play'){activeGame=['merge','shop','eco','clues'].includes(hash.split('/')[1])?hash.split('/')[1]:'merge';$('#gameType').textContent={merge:'머지 · 탐구 개념',shop:'경영 · 경제 개념',eco:'시뮬레이션 · 생태 개념',clues:'추리 · 읽기 개념'}[activeGame];$$('[data-note]',$('.game-reflect')).forEach(n=>{const base=n.dataset.note.split(':')[0];n.dataset.note=base+':'+activeGame;n.value=read(n.dataset.note,'')});cleanup=mountGame(activeGame,$('#gameMount'))}document.title=(page==='play'?'개념어 게임':labels[page].split(' / ')[1])+' · 수업을 만드는 다섯 걸음';window.scrollTo(0,0)}
+function route(){
+  cleanup();cleanup=()=>{};
+  const hash=location.hash.slice(1)||'aside',page=hash.startsWith('play/')?'play':(Object.hasOwn(labels,hash)?hash:'aside');
+  $$('[data-page]').forEach(n=>n.hidden=n.dataset.page!==page);
+  $$('[data-nav]').forEach(n=>{const active=n.dataset.nav===(['play','arcade'].includes(page)?'project':page);n.classList.toggle('active',active);if(active)n.setAttribute('aria-current','page');else n.removeAttribute('aria-current')});
+  $('#breadcrumb').textContent=labels[page];
+  if(page==='play'){
+    activeGame=['merge','shop','eco','clues'].includes(hash.split('/')[1])?hash.split('/')[1]:'merge';
+    $('#gameType').textContent={merge:'머지 · 탐구 개념',shop:'경영 · 경제 개념',eco:'시뮬레이션 · 생태 개념',clues:'추리 · 읽기 개념'}[activeGame];
+    $$('[data-note]',$('.game-reflect')).forEach(n=>{const base=n.dataset.note.split(':')[0];n.dataset.note=base+':'+activeGame;n.value=read(n.dataset.note,'')});
+    cleanup=mountGame(activeGame,$('#gameMount'));
+  }
+  document.title=(page==='play'?'개념어 게임':labels[page].split(' / ')[1])+' · 수업을 만드는 다섯 걸음';
+  $('#main').focus({preventScroll:true});window.scrollTo(0,0);
+}
+$('.skip').onclick=e=>{e.preventDefault();$('#main').focus({preventScroll:true});$('#main').scrollIntoView({block:'start'})};
 window.addEventListener('hashchange',route);
 $('#closeModal').onclick=()=>$('#modal').close();$('#modal').addEventListener('click',e=>{if(e.target===$('#modal')){const r=e.target.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)e.target.close()}});
 wireNotes();$('#gotoMissions').onclick=()=>$('#asideMissions').scrollIntoView({behavior:'smooth',block:'start'});
@@ -14,7 +29,7 @@ missionInfo.forEach(([role,title,body,i],k)=>{const card=document.createElement(
 C.aside.filter((_,i)=>![0,1,3].includes(i)).forEach(a=>{const d=document.createElement('details');d.innerHTML='<summary>'+esc(a.title)+'</summary><pre>'+esc(a.prompt)+'</pre><button class="secondary">요청문 복사</button>';d.querySelector('button').onclick=()=>copyText(a.prompt);$('#asideMore').append(d)});
 C.axes.forEach(a=>{const card=document.createElement('article');card.className='axiscard';card.innerHTML='<span class="axisletter">'+a.key+'</span><h3>'+a.name+'</h3><p><b>'+a.short+'</b></p><p>'+a.meaning+'</p><details><summary>수업 장면으로 보기</summary><p><b>찾아볼 장면</b><br>'+a.seen+'</p><p><b>헷갈리기 쉬운 부분</b><br>'+a.not+'</p><p>'+a.ask+'</p></details>';$('#axisCards').append(card)});
 C.subjects.forEach((s,i)=>{const o=document.createElement('option');o.value=String(i);o.textContent=s.name+' · '+s.topic;$('#ovtSubject').append(o)});
-$('#ovtSubject').value=String(read('ovt-subject',0));C.axes.forEach(a=>{const label=document.createElement('label');label.className='switch';label.innerHTML='<span><b>'+a.key+'</b>'+a.name+'</span><input type="checkbox" id="axis'+a.key+'" aria-label="'+a.name+' 요구" '+(read('ovt-'+a.key,false)?'checked':'')+'>';label.querySelector('input').onchange=e=>{write('ovt-'+a.key,e.target.checked);renderOVT()};$('#axisSwitches').append(label)});
+const savedSubject=Number(read('ovt-subject',null));$('#ovtSubject').value=String(Number.isInteger(savedSubject)&&savedSubject>=0&&savedSubject<C.subjects.length?savedSubject:0);C.axes.forEach(a=>{const label=document.createElement('label');label.className='switch';label.innerHTML='<span><b>'+a.key+'</b>'+a.name+'</span><input type="checkbox" id="axis'+a.key+'" aria-label="'+a.name+' 요구" '+(read('ovt-'+a.key,false)?'checked':'')+'>';label.querySelector('input').onchange=e=>{write('ovt-'+a.key,e.target.checked);renderOVT()};$('#axisSwitches').append(label)});
 function code(){return C.axes.map(a=>$('#axis'+a.key).checked?'1':'0').join('')}
 function scenario(subject,bits){const lines=[['기본',subject.base]];['o','v','t'].forEach((a,i)=>{if(bits[i]==='1')lines.push([a.toUpperCase(),subject[a]])});return lines}
 function evidence(bits){const list=['결과물과 활동 요약'];if(bits[0]==='1')list.push('작업 계획·역할·조정 이유');if(bits[1]==='1')list.push('대조 근거·예상과 실제·수정 판단');if(bits[2]==='1')list.push('두 맥락의 차이·적용 전략·바꾼 이유');return list}
